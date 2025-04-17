@@ -1,0 +1,10 @@
+# Ignore system files
+.DS_Store
+.ipynb_checkpoints/
+
+results/
+data/
+submission/
+
+*.csv
+*.db
