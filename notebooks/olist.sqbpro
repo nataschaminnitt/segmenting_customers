@@ -1,0 +1,364 @@
+<?xml version="1.0" encoding="UTF-8"?><sqlb_project><db path="/Users/nataschajademinnitt/Documents/5. Data Analysis/segmenting_customers/data/raw/olist.db" readonly="0" foreign_keys="1" case_sensitive_like="0" temp_store="0" wal_autocheckpoint="1000" synchronous="2"/><attached/><window><main_tabs open="structure browser pragmas query" current="3"/></window><tab_structure><column_width id="0" width="300"/><column_width id="1" width="0"/><column_width id="2" width="100"/><column_width id="3" width="1561"/><column_width id="4" width="0"/><expanded_item id="0" parent="1"/><expanded_item id="1" parent="1"/><expanded_item id="2" parent="1"/><expanded_item id="3" parent="1"/></tab_structure><tab_browse><table title="orders" custom_title="0" dock_id="7" table="4,6:mainorders"/><dock_state state="000000ff00000000fd0000000100000002000005b0000002d8fc0100000003fb000000160064006f0063006b00420072006f007700730065003101000000000000036d0000000000000000fb000000160064006f0063006b00420072006f00770073006500340100000000000007740000000000000000fb000000160064006f0063006b00420072006f00770073006500370100000000000005b00000014900ffffff000005b00000000000000004000000040000000800000008fc00000000"/><default_encoding codec=""/><browse_table_settings><table schema="main" name="customers" show_row_id="0" encoding="" plot_x_axis="" unlock_view_pk="_rowid_" freeze_columns="0"><sort/><column_widths><column index="1" value="55"/><column index="2" value="225"/><column index="3" value="225"/><column index="4" value="202"/><column index="5" value="148"/><column index="6" value="126"/></column_widths><filter_values/><conditional_formats/><row_id_formats/><display_formats/><hidden_columns/><plot_y_axes/><global_filter/></table><table schema="main" name="geoloc" show_row_id="0" encoding="" plot_x_axis="" unlock_view_pk="_rowid_" freeze_columns="0"><sort/><column_widths><column index="1" value="55"/><column index="2" value="218"/><column index="3" value="125"/><column index="4" value="128"/><column index="5" value="132"/><column index="6" value="142"/></column_widths><filter_values/><conditional_formats/><row_id_formats/><display_formats/><hidden_columns/><plot_y_axes/><global_filter/></table><table schema="main" name="order_items" show_row_id="0" encoding="" plot_x_axis="" unlock_view_pk="_rowid_" freeze_columns="0"><sort><column index="3" mode="1"/></sort><column_widths><column index="1" value="55"/><column index="2" value="225"/><column index="3" value="115"/><column index="4" value="225"/><column index="5" value="225"/><column index="6" value="155"/><column index="7" value="55"/><column index="8" value="110"/></column_widths><filter_values/><conditional_formats/><row_id_formats/><display_formats/><hidden_columns/><plot_y_axes/><global_filter/></table><table schema="main" name="order_pymts" show_row_id="0" encoding="" plot_x_axis="" unlock_view_pk="_rowid_" freeze_columns="0"><sort><column index="4" mode="1"/></sort><column_widths><column index="1" value="55"/><column index="2" value="225"/><column index="3" value="158"/><column index="4" value="117"/><column index="5" value="171"/><column index="6" value="123"/></column_widths><filter_values/><conditional_formats/><row_id_formats/><display_formats/><hidden_columns/><plot_y_axes/><global_filter/></table><table schema="main" name="order_reviews" show_row_id="0" encoding="" plot_x_axis="" unlock_view_pk="_rowid_" freeze_columns="0"><sort/><column_widths><column index="1" value="55"/><column index="2" value="225"/><column index="3" value="225"/><column index="4" value="109"/><column index="5" value="171"/><column index="6" value="300"/><column index="7" value="166"/><column index="8" value="202"/></column_widths><filter_values/><conditional_formats/><row_id_formats/><display_formats/><hidden_columns/><plot_y_axes/><global_filter/></table><table schema="main" name="orders" show_row_id="0" encoding="" plot_x_axis="" unlock_view_pk="_rowid_" freeze_columns="0"><sort/><column_widths><column index="1" value="55"/><column index="2" value="225"/><column index="3" value="225"/><column index="4" value="106"/><column index="5" value="209"/><column index="6" value="150"/><column index="7" value="219"/><column index="8" value="238"/><column index="9" value="233"/></column_widths><filter_values/><conditional_formats/><row_id_formats/><display_formats/><hidden_columns/><plot_y_axes/><global_filter/></table><table schema="main" name="products" show_row_id="0" encoding="" plot_x_axis="" unlock_view_pk="_rowid_" freeze_columns="0"><sort/><column_widths><column index="1" value="55"/><column index="2" value="225"/><column index="3" value="282"/><column index="4" value="171"/><column index="5" value="211"/><column index="6" value="160"/><column index="7" value="144"/><column index="8" value="154"/><column index="9" value="154"/><column index="10" value="148"/></column_widths><filter_values/><conditional_formats/><row_id_formats/><display_formats/><hidden_columns/><plot_y_axes/><global_filter/></table></browse_table_settings></tab_browse><tab_sql><sql name="SQL 1"> -- QUESTION 1 : Recent Delayed Orders
+SELECT *
+FROM orders
+WHERE order_status NOT LIKE 'canceled'
+  AND order_purchase_timestamp &gt;= (
+      SELECT DATE(MAX(order_purchase_timestamp), '-3 months')
+      FROM orders
+  )
+  AND (julianday(order_delivered_customer_date) - julianday(order_purchase_timestamp)) &gt;= 3;
+  
+ -- QUESTION 2 : Sellers with Revenue &gt; 100,000 Reais
+SELECT seller_id, SUM(order_item_id * price) AS total_revenue
+FROM order_items
+GROUP BY seller_id
+HAVING SUM(order_item_id * price) &gt;= 100000;
+
+-- QUESTION 3 : New and Engaged Sellers
+SELECT 
+    oi.seller_id,
+    SUM(oi.order_item_id) AS total_products_sold,
+    MIN(o.order_purchase_timestamp) AS first_order_date
+FROM order_items AS oi
+JOIN orders AS o ON oi.order_id = o.order_id
+GROUP BY oi.seller_id
+HAVING MIN(o.order_purchase_timestamp) &gt;= (
+    SELECT DATE(MAX(o2.order_purchase_timestamp), '-3 months')
+    FROM orders AS o2
+)
+AND SUM(oi.order_item_id) &gt; 30;
+
+-- QUESTION 4 : Worst Review Score by Zip Code
+WITH recent_orders AS (
+  SELECT *
+  FROM orders
+  WHERE order_purchase_timestamp &gt;= (
+      SELECT DATE(MAX(order_purchase_timestamp), '-12 months') FROM orders
+  )
+)
+SELECT 
+  c.customer_zip_code_prefix, 
+  COUNT(r.review_score) AS review_count, 
+  AVG(r.review_score) AS avg_review_score
+FROM recent_orders o
+INNER JOIN order_reviews r ON o.order_id = r.order_id
+INNER JOIN customers c ON o.customer_id = c.customer_id
+GROUP BY c.customer_zip_code_prefix
+HAVING review_count &gt; 30
+ORDER BY avg_review_score ASC
+LIMIT 5;</sql><sql name="SQL 3">DROP TABLE geoloc_aggregated
+DROP TABLE customers_with_geo 
+DROP TABLE composite_table
+
+-- COMPUTING THE AVERAGE GEO LOC FOR A POSTAL CODE
+CREATE TABLE geoloc_aggregated AS
+SELECT
+    geolocation_zip_code_prefix,
+    AVG(geolocation_lat) AS avg_lat,
+    AVG(geolocation_lng) AS avg_lng
+FROM geoloc
+GROUP BY geolocation_zip_code_prefix;
+
+-- JOINING AVERAGE GEO LOCATION WITH CUSTOMERS 
+CREATE TABLE customers_with_geo AS
+SELECT 
+    c.*,
+    g.avg_lat AS geolocation_lat,
+    g.avg_lng AS geolocation_lng
+FROM 
+    customers c
+LEFT JOIN 
+    geoloc_aggregated g ON c.customer_zip_code_prefix = g.geolocation_zip_code_prefix;
+
+-- MERGING WITH ORDERS AND REVIEWS
+CREATE TABLE composite_table AS
+SELECT
+    cwg.customer_id,
+	cwg.customer_zip_code_prefix,
+	cwg.customer_state,
+    cwg.geolocation_lat,
+    cwg.geolocation_lng,
+    o.order_id,
+    o.order_purchase_timestamp AS recency,
+    o.order_delivered_customer_date AS delivery_time,
+    o.order_estimated_delivery_date AS estimated_delivery_time,
+    oi.frequency_products,
+    oi.frequency_orders,
+    oi.monetary_price,
+    oi.monetary_freight,
+    r.satisfaction_score,
+    r.satisfaction_count
+FROM
+    customers_with_geo cwg
+JOIN 
+    orders o ON cwg.customer_id = o.customer_id
+LEFT JOIN (
+    SELECT 
+        order_id,
+		COUNT(DISTINCT product_id) AS frequency_products,
+        COUNT(order_item_id) AS frequency_orders,
+        SUM(price) AS monetary_price,
+        SUM(freight_value) AS monetary_freight
+    FROM order_items
+    GROUP BY order_id
+) oi ON o.order_id = oi.order_id
+LEFT JOIN (
+    SELECT
+        order_id,
+        AVG(review_score) AS satisfaction_score,
+        COUNT(review_score) AS satisfaction_count
+    FROM order_reviews
+    GROUP BY order_id
+) r ON o.order_id = r.order_id
+WHERE
+    o.order_status = 'delivered'
+	AND o.order_purchase_timestamp
+      &gt;= DATE((SELECT max_date FROM max_ts), '-1 year')
+
+-- CREATE A PRODUCT CATEGORY TABLE TO CLUSTER CATEGORIES
+DROP TABLE product_order_table
+CREATE TABLE product_order_table AS
+SELECT 
+  p.product_category_name,
+  oi.order_id
+FROM products p
+INNER JOIN order_items oi
+  ON p.product_id = oi.product_id;
+	
+-- MULTIPLE REVIEW COUNTS FOR A SINGLE SHIPMENT
+SELECT *
+FROM composite_table c
+WHERE
+	c.total_shipments &lt; c.review_count
+
+-- MULTIPLE SHIPMENTS FOR THE SAME PRODUCTS (return only the orders where there are more shipments than unique products)
+SELECT
+    oi.order_id,
+    COUNT(DISTINCT product_id) AS product_count,
+    COUNT(order_item_id) AS total_shipments
+FROM order_items oi
+GROUP BY oi.order_id
+HAVING COUNT(DISTINCT product_id) &lt; COUNT(order_item_id);
+
+-- MULTIPLE SHIPMENTS FOR A SINGLE SELLER AND PRODUCT
+SELECT
+    oi.order_id,
+	COUNT(DISTINCT seller_id) AS seller_count,
+    COUNT(DISTINCT product_id) AS product_count,
+    COUNT(order_item_id) AS total_shipments
+FROM order_items oi
+GROUP BY oi.order_id
+HAVING COUNT(DISTINCT seller_id) = COUNT(DISTINCT product_id) AND  
+					COUNT(DISTINCT seller_id) &lt; COUNT(order_item_id);</sql><sql name="SQL 4*">--- PRODUCT SCORE TABLE
+ CREATE TABLE product_score_table AS
+WITH
+  max_ts AS (
+    SELECT MAX(order_purchase_timestamp) AS max_date
+    FROM orders
+  )
+SELECT
+  p.product_category_name,
+  COUNT(*) AS frequency,
+  MIN(julianday((SELECT max_date FROM max_ts))- julianday(o.order_purchase_timestamp)) AS recency
+
+FROM products p
+JOIN order_items oi
+  ON p.product_id = oi.product_id
+JOIN orders o
+  ON oi.order_id = o.order_id
+
+WHERE
+  o.order_status NOT IN ('canceled', 'unavailable')
+  AND o.order_purchase_timestamp
+      &gt;= DATE((SELECT max_date FROM max_ts), '-1 year')
+
+GROUP BY
+  p.product_category_name;
+
+  
+--- COMPUTING THE AVERAGE GEO LOC FOR A POSTAL CODE
+CREATE TABLE geoloc_aggregated AS
+SELECT
+    geolocation_zip_code_prefix,
+    AVG(geolocation_lat) AS avg_lat,
+    AVG(geolocation_lng) AS avg_lng
+FROM geoloc
+GROUP BY geolocation_zip_code_prefix;
+
+
+-- JOINING AVERAGE GEO LOCATION WITH CUSTOMERS 
+CREATE TABLE customers_with_geo AS
+SELECT 
+    c.*,
+    g.avg_lat AS geolocation_lat,
+    g.avg_lng AS geolocation_lng
+FROM 
+    customers c
+LEFT JOIN 
+    geoloc_aggregated g ON c.customer_zip_code_prefix = g.geolocation_zip_code_prefix;
+
+	
+-- MERGING WITH ORDERS AND REVIEWS
+DROP TABLE composite_table
+CREATE TABLE composite_table AS
+WITH
+  oi AS (
+    SELECT 
+      order_id,
+      COUNT(DISTINCT product_id)    AS f_products,
+      COUNT(order_item_id)          AS f_orders,
+      SUM(price)                    AS m_price,
+      SUM(freight_value)            AS m_freight
+    FROM order_items
+    GROUP BY order_id
+  ),
+
+  r AS (
+    SELECT
+      order_id,
+      AVG(review_score) AS s_review_score,
+      COUNT(*)         AS s_review_count
+    FROM order_reviews
+    GROUP BY order_id
+  ),
+
+  pay AS (
+    SELECT
+      order_id,
+      MAX(CASE WHEN payment_type = 'credit_card' THEN 1 ELSE 0 END) AS m_credit,
+      SUM(payment_installments) AS m_total_installments
+
+    FROM order_pymts
+    GROUP BY order_id
+  )
+
+SELECT
+    cwg.customer_id,
+    cwg.customer_zip_code_prefix,
+    cwg.customer_state,
+    cwg.geolocation_lat,
+    cwg.geolocation_lng,
+    o.order_id,
+
+    ( julianday(o.order_delivered_customer_date)
+      - julianday(o.order_estimated_delivery_date)
+    ) AS s_delivery_diff,
+
+    oi.f_products,
+    oi.f_orders,
+    oi.m_price,
+    oi.m_freight,
+    r.s_review_score,
+    r.s_review_count,
+	o.order_purchase_timestamp,
+    pay.m_credit,
+	pay.m_total_installments
+
+FROM customers_with_geo AS cwg
+JOIN orders AS o
+  ON cwg.customer_id = o.customer_id
+LEFT JOIN oi
+  ON o.order_id = oi.order_id
+LEFT JOIN r
+  ON o.order_id = r.order_id
+LEFT JOIN pay
+  ON o.order_id = pay.order_id
+
+WHERE
+    o.order_status = 'delivered'
+;
+
+--- NEW
+
+DROP TABLE customer_features 
+CREATE TABLE customer_features AS
+WITH
+  -- 1) Latest delivered timestamp
+  max_ts AS (
+    SELECT MAX(order_purchase_timestamp) AS max_date
+    FROM orders
+    WHERE order_status = 'delivered'
+  ),
+
+  -- 2) Order‑level line‑item aggregates
+  oi AS (
+    SELECT 
+      oi.order_id,
+      COUNT(*)                       AS f_products,
+      SUM(oi.price)                 AS m_price,
+      SUM(oi.freight_value)         AS m_freight
+    FROM order_items oi
+    JOIN orders o
+      ON oi.order_id = o.order_id
+    WHERE o.order_status = 'delivered'
+    GROUP BY oi.order_id
+  ),
+
+  -- 3) Order‑level review aggregates
+  r AS (
+    SELECT
+      rw.order_id,
+      AVG(rw.review_score)          AS s_review_score,
+      COUNT(*)                      AS s_review_count
+    FROM order_reviews rw
+    JOIN orders o
+      ON rw.order_id = o.order_id
+    WHERE o.order_status = 'delivered'
+    GROUP BY rw.order_id
+  ),
+
+  -- 4) Order‑level payment aggregates
+  pay AS (
+    SELECT
+      p.order_id,
+      MAX(CASE WHEN p.payment_type = 'credit_card' THEN 1 ELSE 0 END)
+                                    AS m_credit,
+      SUM(p.payment_installments)   AS m_total_installments
+    FROM order_pymts p
+    JOIN orders o
+      ON p.order_id = o.order_id
+    WHERE o.order_status = 'delivered'
+    GROUP BY p.order_id
+  )
+
+SELECT
+    o.order_id,
+    o.customer_id,
+    o.order_purchase_timestamp,     -- &lt;-- added back
+    cwg.customer_zip_code_prefix,
+    cwg.customer_state,
+    cwg.geolocation_lat,
+    cwg.geolocation_lng,
+
+    -- Recency in days
+    ( julianday((SELECT max_date FROM max_ts))
+      - julianday(o.order_purchase_timestamp)
+    )                                AS recency_days,
+
+    -- Delivery vs. estimate
+    ( julianday(o.order_delivered_customer_date)
+      - julianday(o.order_estimated_delivery_date)
+    )                                AS s_delivery_diff,
+
+    oi.f_products,
+    oi.m_price,
+    oi.m_freight,
+    r.s_review_score,
+    r.s_review_count,
+    pay.m_credit,
+    pay.m_total_installments
+
+FROM orders o
+JOIN customers_with_geo cwg
+  ON o.customer_id = cwg.customer_id
+
+LEFT JOIN oi
+  ON o.order_id = oi.order_id
+LEFT JOIN r
+  ON o.order_id = r.order_id
+LEFT JOIN pay
+  ON o.order_id = pay.order_id
+
+WHERE o.order_status = 'delivered'
+;
+</sql><current_tab id="2"/></tab_sql></sqlb_project>
